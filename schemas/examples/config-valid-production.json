@@ -1,0 +1,95 @@
+{
+  "app": {
+    "name": "tent-of-trials",
+    "version": "3.2.0",
+    "environment": "production",
+    "debug": false,
+    "log_level": "info",
+    "log_format": "json"
+  },
+  "server": {
+    "host": "0.0.0.0",
+    "port": 8080,
+    "read_timeout": 30,
+    "write_timeout": 60,
+    "idle_timeout": 120,
+    "max_header_bytes": 1048576,
+    "shutdown_timeout": 30
+  },
+  "database": {
+    "host": "db.production.internal",
+    "port": 5432,
+    "name": "tent_production",
+    "user": "tent_app",
+    "password": "${DATABASE_PASSWORD}",
+    "pool_min": 10,
+    "pool_max": 50,
+    "timeout_ms": 5000,
+    "ssl_mode": "require"
+  },
+  "redis": {
+    "host": "redis.production.internal",
+    "port": 6379,
+    "password": "${REDIS_PASSWORD}",
+    "db": 0,
+    "pool_size": 20,
+    "timeout_ms": 2000
+  },
+  "kafka": {
+    "brokers": ["kafka-1.production.internal:9092", "kafka-2.production.internal:9092", "kafka-3.production.internal:9092"],
+    "group_id": "tent-production",
+    "client_id": "tent-backend",
+    "timeout_ms": 10000,
+    "retry_count": 3,
+    "retry_backoff_ms": 1000,
+    "enable_auto_commit": true,
+    "auto_commit_interval_ms": 5000
+  },
+  "market": {
+    "rate_limit_per_second": 10,
+    "rate_limit_burst": 20,
+    "orderbook_depth": 50,
+    "max_order_size": 1000,
+    "min_order_size": 0.001,
+    "max_position_size": 10000,
+    "allowed_instruments": ["BTC/USDT", "ETH/USDT", "SOL/USDT"],
+    "fees": {
+      "maker": 0.001,
+      "taker": 0.002,
+      "withdrawal": 0.0
+    }
+  },
+  "auth": {
+    "jwt_secret": "${JWT_SECRET}",
+    "jwt_expiry_minutes": 60,
+    "refresh_token_expiry_days": 30,
+    "session_timeout_minutes": 60,
+    "mfa_required": true,
+    "max_login_attempts": 5,
+    "lockout_duration_minutes": 15,
+    "password_min_length": 12,
+    "password_require_special": true,
+    "password_require_numbers": true,
+    "password_require_uppercase": true
+  },
+  "monitoring": {
+    "metrics_enabled": true,
+    "metrics_port": 9090,
+    "tracing_enabled": true,
+    "tracing_sample_rate": 0.01,
+    "tracing_endpoint": "http://otel-collector.production.internal:4318",
+    "health_check_enabled": true,
+    "profiling_enabled": false
+  },
+  "features": {
+    "web_socket": true,
+    "streaming": true,
+    "ai_assistant": false,
+    "social_trading": false,
+    "margin_trading": true,
+    "futures_trading": false,
+    "options_trading": false,
+    "dark_mode": true,
+    "ab_testing": true
+  }
+}
