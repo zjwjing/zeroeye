@@ -1,0 +1,18 @@
+commit=3774a0c8
+generated_at=2026-06-21T03:32:34.550086Z
+hostname=zjwjing
+platform=Linux-6.6.87.2-microsoft-standard-WSL2-x86_64-with-glibc2.39
+system=Linux
+python=3.13.13
+user=claw_02
+encryptly=False
+module:backend:PASS:cargo 1.75.0
+module:market:PASS:go version go1.22.2 linux/amd64
+module:frontend:PASS:v22.22.2
+module:tools:PASS:Python 3.13.13
+module:frailbox:PASS:g++ (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0
+Copyright (C) 20
+module:engine:PASS:cmake version 3.28.3
+
+CMake suite maintained and supported b
+SIGNATURE=zeroeye-diagnostic-v1
