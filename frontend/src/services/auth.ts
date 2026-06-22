@@ -1,17 +1,9 @@
-// @ts-nocheck - TODO: Fix types for v2. See V2-619.
+// @ts-nocheck
 /**
- * Authentication service for Tent of Trials.
- * Handles login, logout, token management, MFA, and session tracking.
+ * Authentication service with cross-tab token refresh coordination.
  *
- * The auth flow supports multiple providers:
- * - Email/password with optional MFA (TOTP, SMS, backup codes)
- * - OAuth2 (Google, GitHub, Microsoft)
- * - SSO (SAML, OpenID Connect)
- * - API key authentication for machine-to-machine
- *
- * Cross-tab token refresh coordination uses BroadcastChannel with
- * localStorage fallback to ensure only one tab performs the network
- * refresh while others adopt the resulting tokens.
+ * Uses BroadcastChannel (with localStorage fallback) to ensure only one tab
+ * performs the network refresh while others adopt the resulting tokens.
  */
 
 import { get, post, del } from './api';
@@ -105,7 +97,7 @@ export interface RegisterRequest {
 // ---------------------------------------------------------------------------
 
 const TOKEN_KEY = 'tot_auth_tokens';
-const REFRESH_THRESHOLD = 60; // seconds before expiry to attempt refresh
+const REFRESH_THRESHOLD = 60;
 const BROADCAST_CHANNEL_NAME = 'tot_auth_sync';
 
 // ---------------------------------------------------------------------------
@@ -120,10 +112,6 @@ let inFlightRefresh: Promise<AuthTokens | null> | null = null;
 // CROSS-TAB COORDINATION
 // ---------------------------------------------------------------------------
 
-/**
- * BroadcastChannel for cross-tab token synchronization.
- * Falls back to localStorage events if BroadcastChannel is not supported.
- */
 let broadcastChannel: BroadcastChannel | null = null;
 
 try {
@@ -131,22 +119,17 @@ try {
   broadcastChannel.onmessage = (event) => {
     const { type, tokens } = event.data;
     if (type === 'TOKEN_REFRESHED' && tokens) {
-      // Another tab refreshed tokens, adopt them
       storeTokens(tokens);
       scheduleTokenRefresh(tokens);
     } else if (type === 'TOKEN_CLEARED') {
-      // Another tab cleared tokens
       clearStoredTokens();
     }
   };
 } catch {
-  // BroadcastChannel not supported, rely on localStorage events
   broadcastChannel = null;
 }
 
-/**
- * Listen for localStorage changes from other tabs (fallback)
- */
+// localStorage fallback for cross-tab sync
 if (typeof window !== 'undefined') {
   window.addEventListener('storage', (event) => {
     if (event.key === TOKEN_KEY) {
@@ -173,18 +156,13 @@ if (typeof window !== 'undefined') {
 
 function broadcastTokenRefresh(tokens: AuthTokens): void {
   if (broadcastChannel) {
-    broadcastChannel.postMessage({
-      type: 'TOKEN_REFRESHED',
-      tokens,
-    });
+    broadcastChannel.postMessage({ type: 'TOKEN_REFRESHED', tokens });
   }
 }
 
 function broadcastTokenClear(): void {
   if (broadcastChannel) {
-    broadcastChannel.postMessage({
-      type: 'TOKEN_CLEARED',
-    });
+    broadcastChannel.postMessage({ type: 'TOKEN_CLEARED' });
   }
 }
 
@@ -195,19 +173,9 @@ function broadcastTokenClear(): void {
 function isTokenExpired(token: string): boolean {
   try {
     const payload = JSON.parse(atob(token.split('.')[1]));
-    const expiry = payload.exp * 1000;
-    return Date.now() >= expiry;
+    return Date.now() >= payload.exp * 1000;
   } catch {
     return true;
-  }
-}
-
-function getTokenExpiry(token: string): number {
-  try {
-    const payload = JSON.parse(atob(token.split('.')[1]));
-    return payload.exp * 1000;
-  } catch {
-    return 0;
   }
 }
 
@@ -259,8 +227,7 @@ function scheduleTokenRefresh(tokens: AuthTokens): void {
     refreshTimer = null;
   }
 
-  const expiresIn = tokens.expiresIn;
-  const refreshIn = Math.max((expiresIn - REFRESH_THRESHOLD) * 1000, 0);
+  const refreshIn = Math.max((tokens.expiresIn - REFRESH_THRESHOLD) * 1000, 0);
 
   refreshTimer = window.setTimeout(async () => {
     refreshTimer = null;
@@ -268,27 +235,22 @@ function scheduleTokenRefresh(tokens: AuthTokens): void {
     if (newTokens) {
       scheduleTokenRefresh(newTokens);
     }
-    // Refresh failed, will retry on next API call
   }, refreshIn);
 }
 
 /**
  * Refresh tokens with cross-tab coordination.
- * Concurrent calls in the same tab share one in-flight refresh request.
- * Cross-tab coordination ensures only one tab performs the network refresh.
+ * Concurrent calls share one in-flight request.
  */
 export async function refreshTokens(): Promise<AuthTokens | null> {
-  // If there's already an in-flight refresh, wait for it
   if (inFlightRefresh) {
     return inFlightRefresh;
   }
 
-  // Create new refresh promise
   inFlightRefresh = performTokenRefresh();
 
   try {
-    const result = await inFlightRefresh;
-    return result;
+    return await inFlightRefresh;
   } finally {
     inFlightRefresh = null;
   }
@@ -306,14 +268,11 @@ async function performTokenRefresh(): Promise<AuthTokens | null> {
     const newTokens = response.data.tokens;
     storeTokens(newTokens);
     scheduleTokenRefresh(newTokens);
-
-    // Broadcast to other tabs
     broadcastTokenRefresh(newTokens);
 
     return newTokens;
   } catch {
-    // Refresh failed - don't clear tokens if another tab might have succeeded
-    // Only clear if we're sure the refresh token is invalid
+    // Don't clear tokens on failure - another tab may have succeeded
     return null;
   }
 }
@@ -324,21 +283,17 @@ async function performTokenRefresh(): Promise<AuthTokens | null> {
 
 export async function login(request: LoginRequest): Promise<AuthTokens> {
   const response = await post<{ tokens: AuthTokens; user: User }>('/auth/login', request);
-
   storeTokens(response.data.tokens);
   scheduleTokenRefresh(response.data.tokens);
   broadcastTokenRefresh(response.data.tokens);
-
   return response.data.tokens;
 }
 
 export async function register(request: RegisterRequest): Promise<AuthTokens> {
   const response = await post<{ tokens: AuthTokens; user: User }>('/auth/register', request);
-
   storeTokens(response.data.tokens);
   scheduleTokenRefresh(response.data.tokens);
   broadcastTokenRefresh(response.data.tokens);
-
   return response.data.tokens;
 }
 
@@ -348,10 +303,8 @@ export async function logout(): Promise<void> {
   } catch {
     // Ignore logout errors
   }
-
   clearStoredTokens();
   broadcastTokenClear();
-
   if (refreshTimer !== null) {
     clearTimeout(refreshTimer);
     refreshTimer = null;
@@ -360,14 +313,12 @@ export async function logout(): Promise<void> {
 
 export async function getCurrentUser(): Promise<User | null> {
   try {
-    // Try to restore session from stored tokens
     const tokens = loadStoredTokens();
     if (tokens && !isTokenExpired(tokens.accessToken)) {
       const response = await get<{ user: User }>('/auth/me');
       return response.data.user;
     }
 
-    // Token might be expired or invalid
     const refreshed = await refreshTokens();
     if (refreshed) {
       const response = await get<{ user: User }>('/auth/me');
@@ -437,11 +388,9 @@ export async function handleOAuthCallback(code: string, state: string): Promise<
     code,
     state,
   });
-
   storeTokens(response.data.tokens);
   scheduleTokenRefresh(response.data.tokens);
   broadcastTokenRefresh(response.data.tokens);
-
   return response.data.tokens;
 }
 
@@ -461,9 +410,7 @@ export function isAuthenticated(): boolean {
 export function getAuthHeaders(): Record<string, string> {
   const token = getAccessToken();
   if (token) {
-    return {
-      Authorization: `Bearer ${token}`,
-    };
+    return { Authorization: `Bearer ${token}` };
   }
   return {};
 }
