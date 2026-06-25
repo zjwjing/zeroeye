@@ -1,5 +1,5 @@
 {
-  "build_id": "build-997a33e5118486be",
+  "build_id": "build-e50dfbf1f5b2b6cd",
   "type": "quick_diag",
   "files": [
     ".github/ISSUE_TEMPLATE/bug_report.yml",
@@ -45,13 +45,15 @@
     "build.py",
     "compliance/ComplianceAuditor.java",
     "data/README.md",
-    "diagnostic/build-00000000.json",
-    "diagnostic/build-00000000.logd",
-    "diagnostic/build-3774a0c8.arc",
-    "diagnostic/build-3774a0c8.json",
-    "diagnostic/build-3774a0c8.logd",
+    "diagnostic/build-997a33e5118486be.arc",
+    "diagnostic/build-997a33e5118486be.json",
+    "diagnostic/build-997a33e5118486be.logd",
     "docs/API_REFERENCE.md",
-    "docs/ARCHITECTURE.md"
+    "docs/ARCHITECTURE.md",
+    "docs/CHANGELOG.md",
+    "docs/OPERATIONS.md"
   ],
-  "total_files": 186
+  "total_files": 187,
+  "encrypted": true,
+  "encryption": "AES-GCM"
 }
